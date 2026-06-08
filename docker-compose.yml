@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  # Backend API Server
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - '3001:3001'
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - REDIS_URL=redis://redis:6379
+      - CORS_ORIGIN=http://localhost:5173
+    depends_on:
+      - redis
+    networks:
+      - video-conf-network
+    restart: unless-stopped
+
+  # Frontend (Development - Vite HMR)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - '5173:5173'
+    environment:
+      - VITE_API_URL=http://localhost:3001
+      - VITE_SOCKET_URL=http://localhost:3001
+    depends_on:
+      - backend
+    networks:
+      - video-conf-network
+    # For development, use volumes for hot reload
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+  # Redis for signaling and pub/sub
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-data:/data
+    networks:
+      - video-conf-network
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+
+  # Media Server (mediasoup) - For production
+  media-server:
+    build:
+      context: ./media-server
+      dockerfile: Dockerfile
+    ports:
+      - '3002:3002'
+      - '30000-30100:30000-30100/udp'
+    environment:
+      - NODE_ENV=development
+      - PORT=3002
+    networks:
+      - video-conf-network
+    restart: unless-stopped
+    # Increase UDP buffer sizes for WebRTC
+    sysctls:
+      - net.core.rmem_max=26214400
+      - net.core.rmem_default=26214400
+
+volumes:
+  redis-data:
+
+networks:
+  video-conf-network:
+    driver: bridge
