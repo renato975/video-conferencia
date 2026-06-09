@@ -44,6 +44,11 @@ function App() {
         peer.signal(data.signal);
         peerRef.current = peer;
       });
+      
+const socket = io(API_URL, { 
+  transports: ['websocket'],
+  upgrade: false 
+});
 
       socket.on('answer', (data) => { peerRef.current?.signal(data.signal); });
     });
