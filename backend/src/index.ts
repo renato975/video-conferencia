@@ -5,25 +5,22 @@ import cors from 'cors';
 
 const app = express();
 app.use(cors());
-
 const httpServer = createServer(app);
-const io = new Server(httpServer, {
-  cors: { origin: "*" }
-});
-
-app.get('/', (req, res) => {
-  res.send('Cérebro da Minds Video está Online! 🧠');
-});
+const io = new Server(httpServer, { cors: { origin: "*" } });
 
 io.on('connection', (socket) => {
-  console.log('Alguém conectou:', socket.id);
   socket.on('join-room', (roomId) => {
     socket.join(roomId);
     socket.to(roomId).emit('user-connected', socket.id);
   });
+
+  socket.on('offer', (data) => {
+    io.to(data.to).emit('offer', { from: socket.id, signal: data.signal });
+  });
+
+  socket.on('answer', (data) => {
+    io.to(data.to).emit('answer', { from: socket.id, signal: data.signal });
+  });
 });
 
-const PORT = process.env.PORT || 3001;
-httpServer.listen(PORT, () => {
-  console.log('Rodando na porta ' + PORT);
-});
+httpServer.listen(process.env.PORT || 3001);
